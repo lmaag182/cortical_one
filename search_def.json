@@ -1,0 +1,42 @@
+{
+  "includedFields": [
+    {
+      "fieldName": "s1",
+      "fieldType": "float"
+    }, 
+    {
+      "fieldName": "s2",
+      "fieldType": "float"
+    }, 
+    {
+      "fieldName": "s3",
+      "fieldType": "float"
+    },
+    {
+      "fieldName": "s4",
+      "fieldType": "float"
+    }
+  ], 
+  "streamDef": {
+    "info": "eggs",
+    "version": 1, 
+    "streams": [
+      {
+        "info": "financetest4",
+        "source": "file://eggs.csv",
+        "columns": [
+          "*"
+        ]
+      }
+    ]
+  }, 
+  "inferenceType": "TemporalMultiStep", 
+  "inferenceArgs": {
+    "predictionSteps": [
+      4
+    ], 
+    "predictedField": "s1"
+  }, 
+  "iterationCount": -1, 
+  "swarmSize": "medium"
+}
