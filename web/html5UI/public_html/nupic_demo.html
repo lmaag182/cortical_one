@@ -1,0 +1,153 @@
+<!--
+To change this template, choose Tools | Templates
+and open the template in the editor.
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>NUPIC Demo</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js'></script>
+        <script src="js/stomp.js"></script>
+        <script src="js/plotly/plotly.js" type="text/javascript"></script>
+        <script>//<![CDATA[
+            $(document).ready(function () {
+
+                var trace1 = {
+                    x: [],
+                    y: [],
+                    type: 'scatter',
+                    name: 'sensor1'
+                };
+
+                var trace2 = {
+                    x: [],
+                    y: [],
+                    type: 'scatter',
+                    name: 'sensor2'
+                };
+                var trace3 = {
+                    x: [],
+                    y: [],
+                    type: 'scatter',
+                    name: 'sensor3'
+                };
+                var trace4 = {
+                    x: [],
+                    y: [],
+                    type: 'scatter',
+                    name: 'sensor4'
+                };
+                var tracep = {
+                    x: [],
+                    y: [],
+                    type: 'scatter',
+                    name: 'prediction'
+                };
+
+                var data = [trace1, trace2, trace3, trace4, tracep];
+
+                Plotly.newPlot('myDiv', data);
+
+
+                var node_id = "0005";
+                var sendButtonValue = function (id) {
+                    //alert(id);
+                    client.send("/topic/node." + node_id + ".btn", {}, "btn;" + id + ";" + node_id);
+                };
+                if (window.WebSocket) {
+                    var client, destination;
+                    var counter =0;
+                    var p = 0;
+                    var str = "";
+                    client = Stomp.client("ws://localhost:61623");
+                    client.debug = function (str) {
+                        $("#debug").append(str + "\n");
+                    };
+                    client.connect("admin", "password", function (frame) {
+                        client.debug("connected to Stomp");
+                        //client.send("/topic/announce.node.", {}, node_id);
+                        //client.subscribe("/topic/UIup", function(message) {
+                        //    $("#messages").text("Arduino is Ready");
+                        //});
+                        //client.subscribe("/topic/feedback.node." + node_id, function(message) {
+                        //    $("#messages").text(message.body + message.destination);
+                        //});
+                        //client.subscribe("/topic/feedback.node." +node_id, function(message) {
+                        //   $("#messages").text(message.body);
+                        //});
+                        client.subscribe("/topic/command", function (message) {
+                            $("#messages").text(message.body);
+                            str = message.body;
+                            trace1.x.push(counter);
+                            trace1.y.push(str.split(",")[0]);
+                            trace2.x.push(counter);
+                            trace2.y.push(str.split(",")[1]);
+                            trace3.x.push(counter);
+                            trace3.y.push(str.split(",")[2]);
+                            trace4.x.push(counter);
+                            trace4.y.push(str.split(",")[3]);
+                            counter = counter + 1;
+                            var data = [trace1, trace2, trace3, trace4, tracep];
+                            Plotly.newPlot('myDiv', data);
+                            
+                        });
+
+                        client.subscribe("/topic/p", function (message) {
+                            p = p + 1;
+                            tracep.x.push(p);
+                            tracep.y.push(message.body);
+                            var data = [trace1, trace2, trace3, trace4, tracep];
+                            Plotly.newPlot('myDiv', data);
+                        });
+                    });
+                    $('#btn1').click(function () {
+                        sendButtonValue(this.id);
+                    });
+                    $('#btn2').click(function () {
+                        sendButtonValue(this.id);
+                    });
+                    $('#btn3').click(function () {
+                        sendButtonValue(this.id);
+                    });
+                    $('#btn4').click(function () {
+                        sendButtonValue(this.id);
+                    });
+                    $('#rst').click(function () {
+                        sendButtonValue(this.id);
+                    });
+                } else {
+                    $("#connect").html("\
+                    <h1>Get a new Web Browser!</h1>\
+                    <p>\
+                    Your browser does not support WebSockets. This example will not work properly.<br>\
+                    Please use a Web Browser with WebSockets support (WebKit or Google Chrome).\
+                    </p>\
+                    ");
+                }
+            });
+            //]]></script>
+    </head>
+    <body>
+
+        <table>
+            <tr>
+                <td>Button 1c</td><td><button type="button" id='btn1'>Set</button></td>
+            </tr>            
+            <tr>
+                <td>Button 2</td><td><button type="button" id='btn2'>Set</button></td>
+            </tr>            
+            <tr>
+                <td>Button 3</td><td><button type="button" id='btn3'>Set</button></td>
+            </tr>            
+            <tr>
+                <td>Button 4</td><td><button type="button" id='btn4'>Set</button></td>
+            </tr>
+            <tr>
+                <td>Reset</td><td><button type="button" id='rst'>Set</button></td><td><span id="messages"></span></td>
+            </tr>
+        </table>
+        <div id="myDiv" style="width: 1200px; height: 400px;"><!-- Plotly chart will be drawn inside this DIV --></div>
+        <pre id="debug"></pre>
+    </body>
+</html>
