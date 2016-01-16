@@ -24,8 +24,8 @@ print(os.getcwd())
 
 
 CONFIG = StompConfig('tcp://localhost:61613',login='admin', passcode='password')
-QUEUE = '/queue/test'
-#QUEUE = '/topic/command'
+#QUEUE = '/queue/test'
+QUEUE = '/topic/command'
 
 
 #ser = serial.Serial('/dev/ttyACM0', 9600)

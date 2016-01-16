@@ -21,8 +21,8 @@ QUEUE = '/topic/command'
 
 def get_online(number_of_records=20):# 0 means forever
 
-    #client = Stomp(CONFIG)
-    #client.connect()
+    client = Stomp(CONFIG)
+    client.connect()
 
     #model = ModelFactory.create(getModelParamsFromName())
     #model.enableInference({"predictedField": "s1"})
@@ -32,10 +32,9 @@ def get_online(number_of_records=20):# 0 means forever
     count=0
     ser.flushInput()
     while (count < number_of_records) or (number_of_records == 0):
-        # while True:
         count = count + 1
         text = ser.readline()
-        #client.send(QUEUE, text)
+        client.send(QUEUE, text)
 
         #print text
         if (len(text.split(",")) == 4):
@@ -59,5 +58,5 @@ def get_online(number_of_records=20):# 0 means forever
             #ser.write(input + '\r\n')
             ser.write(str(prediction)+ '\n')
 
-            #client.send('/topic/p', prediction)
+            client.send('/topic/p', prediction)
 
