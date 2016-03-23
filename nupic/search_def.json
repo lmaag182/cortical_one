@@ -23,7 +23,7 @@
     "streams": [
       {
         "info": "financetest4",
-        "source": "file://eggs.csv",
+        "source": "file://working/eggs.csv",
         "columns": [
           "*"
         ]
