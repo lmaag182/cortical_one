@@ -5,60 +5,96 @@ and open the template in the editor.
 <!DOCTYPE html>
 <html>
     <head>
-        <title>NUPIC Demo</title>
+        <title>cortical one</title>
+        <style>div.group {
+                border: 1px solid black;
+                padding: 3px;
+                margin: 3px;
+            }
+            button.group {
+                border: 1px solid black;
+                padding: 3px;
+                margin: 3px;
+            }
+            .swarm_box {
+                border: 1px solid black;
+                padding: 3px;
+                margin: 3px;
+
+            }
+        </style>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-        <script src='http://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js'></script>
+        <script src="js/jquery-1.12.0.min.js" type="text/javascript"></script>
+        <script src="js/jquery-ui-1.11.4/jquery-ui.js" type="text/javascript"></script>
+        <link href="js/jquery-ui-themes-1.11.4/themes/smoothness/jquery-ui.css" rel="stylesheet" type="text/css"/>
         <script src="js/stomp.js"></script>
+        <script src="js/jsoneditor.js" type="text/javascript"></script>
         <script src="js/plotly/plotly.js" type="text/javascript"></script>
         <script>//<![CDATA[
             $(document).ready(function () {
-
-                var trace1 = {
-                    x: [],
-                    y: [],
-                    type: 'scatter',
-                    name: 'sensor1'
-                };
-
-                var trace2 = {
-                    x: [],
-                    y: [],
-                    type: 'scatter',
-                    name: 'sensor2'
-                };
-                var trace3 = {
-                    x: [],
-                    y: [],
-                    type: 'scatter',
-                    name: 'sensor3'
-                };
-                var trace4 = {
-                    x: [],
-                    y: [],
-                    type: 'scatter',
-                    name: 'sensor4'
-                };
-                var tracep = {
-                    x: [],
-                    y: [],
-                    type: 'scatter',
-                    name: 'prediction'
-                };
-
-                var data = [trace1, trace2, trace3, trace4, tracep];
-
-                Plotly.newPlot('myDiv', data);
+                var monitor = true;
+                var json_schema;
+                var start_online;
+                var stop_online;
+                var online;
+                var subscription;
+                var sensor_model = [];
+                var sample_swarm_config = {};
 
 
-                var node_id = "0005";
-                var sendButtonValue = function (id) {
-                    //alert(id);
-                    client.send("/topic/node." + node_id + ".btn", {}, "btn;" + id + ";" + node_id);
-                };
+                //load  the the schema for the swarm configurtion
+                $.getJSON('search_def_schema.json', function (data) {
+                    json_schema = data;
+                })
+
+
+                var monitor_window_size1 = 20;
+                //var session_config;
+                //var data;
+                plot_model = [];
+
+
+
+                $("#slider1").slider({
+                    value: monitor_window_size1,
+                    min: 0,
+                    max: 500,
+                    step: 20,
+                    slide: function (event, ui) {
+                        $("#amount1").val(ui.value);
+                        monitor_window_size1 = ui.value;
+                        //alert('hello slider');
+                    }
+                });
+
+                $("#tabs").tabs({
+                    active: 0,
+                    activate: function (event, ui) {
+                        if (ui.newPanel.attr('id') === "tabs-3") {
+                            //var command = {message: {type: "command", command: {name: "btn_btn7"}}}
+                            //client.send("/topic/admin_out", {}, JSON.stringify(command));
+                        }
+                        if (ui.newPanel.attr('id') === "tabs-2") {
+                            //var command = {message: {type: "command", command: {name: "btn_btn6"}}}
+                            //client.send("/topic/admin_out", {}, JSON.stringify(command));
+                        }
+                        if (ui.newPanel.attr('id') === "tabs-5") {
+                            var command = {message: {type: "sensor_announce"}}
+                            client.send("/topic/admin_out", {}, JSON.stringify(command));
+
+                        }
+                    }
+                });
+
+
+                $("#amount1").val($("#slider1").slider("value"));
+
+
+
                 if (window.WebSocket) {
                     var client, destination;
-                    var counter =0;
-                    var p = 0;
+                    var counter = 0;
+                    //var p = 0;
                     var str = "";
                     client = Stomp.client("ws://localhost:61623");
                     client.debug = function (str) {
@@ -66,56 +102,347 @@ and open the template in the editor.
                     };
                     client.connect("admin", "password", function (frame) {
                         client.debug("connected to Stomp");
-                        //client.send("/topic/announce.node.", {}, node_id);
-                        //client.subscribe("/topic/UIup", function(message) {
-                        //    $("#messages").text("Arduino is Ready");
-                        //});
-                        //client.subscribe("/topic/feedback.node." + node_id, function(message) {
-                        //    $("#messages").text(message.body + message.destination);
-                        //});
-                        //client.subscribe("/topic/feedback.node." +node_id, function(message) {
-                        //   $("#messages").text(message.body);
-                        //});
-                        client.subscribe("/topic/command", function (message) {
+
+                        client.subscribe("/topic/admin_in", function (message) {
                             $("#messages").text(message.body);
-                            str = message.body;
-                            trace1.x.push(counter);
-                            trace1.y.push(str.split(",")[0]);
-                            trace2.x.push(counter);
-                            trace2.y.push(str.split(",")[1]);
-                            trace3.x.push(counter);
-                            trace3.y.push(str.split(",")[2]);
-                            trace4.x.push(counter);
-                            trace4.y.push(str.split(",")[3]);
-                            counter = counter + 1;
-                            var data = [trace1, trace2, trace3, trace4, tracep];
-                            Plotly.newPlot('myDiv', data);
-                            
+                            var o = JSON.parse(message.body)
+                            if (o.message.type == "reply") {
+                                if (o.message.reply.name == "session_config") {
+                                    sample_swarm_config = o.message.reply.config;
+//                                    $("#config").append($('<div/>', {text: o.message.reply.config.inferenceType}))
+//                                    $("#config").append($('<div/>', {text: o.message.reply.config.inferenceArgs.predictionSteps}))
+//                                    $("#config").append($('<div/>', {text: o.message.reply.config.inferenceArgs.predictedField}))
+//                                    $("#config").append($('<div/>', {text: o.message.reply.config.swarmSize}))
+                                }
+                            }
+                            if (o.message.type == "new_swarm") {
+                                //alert('got new swarm');
+                                add_swarm(
+                                        o.message.new_swarm.sensor,
+                                        o.message.new_swarm.store,
+                                        o.message.new_swarm.swarm
+                                        )
+
+                                $('#edit_' + o.message.new_swarm.sensor + '_' + o.message.new_swarm.store).empty()
+                            }
+                            if (o.message.type == "new_store") {
+                                //alert('got new store');
+                                s = get_sensor_from_sensor_name(o.message.new_store.sensor);
+                                show_store(
+                                        s,
+                                        o.message.new_store.store);
+
+
+                            }
+                            if (o.message.type == "sensor_announcement") {
+                                //sensor_model[o.message.sensor.name]= o.message.sensor.sensor_items
+                                //sensor_model.push(o.message.sensor)
+                                var replaced = false;
+                                $.each(sensor_model, function (index, sensor) {
+                                    if (sensor.name === o.message.sensor.name) {
+                                        //sensor already exists in the model, therefore it needs tobe replaced
+                                        sensor_model[index] = o.message.sensor
+                                        replaced = true;
+                                    }
+                                })
+                                if (replaced == false) {
+                                    sensor_model.push(o.message.sensor)
+                                }
+                                //
+                                $("#sensors").empty()
+                                //sensor_model should be emptied as well
+
+                                //each sensor
+                                $.each(sensor_model, function (index, sensor) {
+                                    var sensor_string = sensor.name + ': ';
+
+                                    //each sensor item
+                                    $.each(sensor.sensor_items, function (index, sensor_item) {
+                                        sensor_string = sensor_string + sensor_item + ' '
+
+                                    })
+
+                                    $("#sensors").append($('<button/>', {
+                                        text: sensor_string, //set text 1 to 10
+                                        id: sensor.name,
+                                        class: 'group',
+                                        click: function () {
+
+                                            $('#stores_ng').empty();
+                                            $.each(sensor.store_ng, function (index, store) {
+
+                                                show_store(sensor, store.name)
+
+                                                $.each(store.swarms, function (index, swarm) {
+                                                    add_swarm(
+                                                            sensor.name,
+                                                            store.name,
+                                                            swarm)
+                                                })
+                                            })
+
+                                            var sensor_plot_model = [];
+                                            $.each(sensor.sensor_items, function (index, isensor_item) {
+                                                var trace = {
+                                                    x: [],
+                                                    y: [],
+                                                    type: 'scatter',
+                                                    name: isensor_item + ' (' + sensor.name + ')'
+                                                };
+                                                //trace.x.push('1')
+                                                //trace.y.push('2')
+                                                sensor_plot_model.push(trace)
+                                            })
+                                            //Plotly.newPlot('sensor_monitor', sensor_plot_model);
+                                            if (typeof subscription != 'undefined') {
+                                                //subscription.unsubscribe();
+                                                client.unsubscribe(subscription);///yeeeeeeeeeees!!!!!!!!!
+                                                //client.subscriptions[subscription].unsubscribe();
+                                            }
+                                            var s = client.subscribe("/topic/" + sensor.name, function (message) {
+                                                subscription = s;
+                                                str = message.body;
+
+                                                // adjust monitor window
+                                                while (sensor_plot_model[0].x.length > monitor_window_size1) {
+                                                    $.each(sensor_plot_model, function (index, trace) {
+                                                        trace.x.shift();
+                                                        trace.y.shift();
+                                                    });
+                                                }
+
+                                                counter = counter + 1;
+                                                $.each(sensor_plot_model, function (index, trace) {
+                                                    trace.x.push(counter);
+                                                    trace.y.push(str.split(";")[index])
+                                                });
+                                                Plotly.newPlot('sensor_monitor', sensor_plot_model);
+
+                                                //Plotly.newPlot('myDiv', sensor_plot_model);
+
+                                            })
+                                            $("#sensor_functions").empty();
+                                            $("#sensor_functions").append($('<button/>', {
+                                                text: 'Start Recording', //set text 1 to 10
+                                                id: 'start_recording',
+                                                class: 'group',
+                                                click: function () {
+                                                    var command = {message: {type: "sensor_command", command: {name: "start_recording", sensor: sensor.name}}}
+                                                    client.send("/topic/admin_out", {}, JSON.stringify(command));
+                                                }
+                                            }));
+                                            $("#sensor_functions").append($('<button/>', {
+                                                text: 'Stop Recording', //set text 1 to 10
+                                                id: 'stop_recording',
+                                                class: 'group',
+                                                click: function () {
+                                                    var command = {message: {type: "sensor_command", command: {name: "stop_recording", sensor: sensor.name}}}
+                                                    client.send("/topic/admin_out", {}, JSON.stringify(command));
+                                                }
+                                            }));
+
+
+                                        }
+                                    }))
+                                })
+                            }
+                        }
+                        );
+                        //Get Session Specification
+                        //Currently only one at a time is supported
+                        var command = {message: {type: "command", command: {name: "get_session_spec"}}}
+                        client.send("/topic/admin_out", {}, JSON.stringify(command));
+
+                        var command = {message: {type: "sensor_announce"}}
+                        client.send("/topic/admin_out", {}, JSON.stringify(command));
+                    });
+
+
+                    var show_store_1 = function (sensor_name, store_name) {
+                        //alert('hello');
+                        d1 = $('<div/>', {
+                            id: sensor_name + '_' + store_name,
+                            title: store_name,
+                            text: store_name,
+                            class: 'group'
+                        }).appendTo('#stores_ng')
+                        return d1;
+                    }
+
+                    var create_swarm_config = function (sensor) {
+                        var new_swarm_config = sample_swarm_config;
+                        var new_included_fields = [];
+                        var new_field = {};
+
+                        $.each(sensor.sensor_items, function (index, field) {
+                            new_field = {fieldName: field, fieldType: 'float'}
+                            new_included_fields.push(new_field);
+                        })
+
+                        new_swarm_config.includedFields = new_included_fields;
+
+                        new_swarm_config.inferenceArgs.predictedField = new_included_fields[0].fieldName;
+                        return new_swarm_config;//new swarm config
+                    }
+
+                    var get_sensor_from_sensor_name = function (sensor_name) {
+                        var sensor_for_name;
+                        $.each(sensor_model, function (index, sensor) {
+                            if (sensor.name === sensor_name) {
+                                sensor_for_name = sensor
+                                //sensor already exists in the model, therefore it needs tobe replaced
+                            }
+                        })
+                        return sensor_for_name;
+                    }
+
+                    var get_store_form_sensor = function (sensor, store_name) {
+                        var store_for_sensor;
+                        $.each(sensor.store_ng, function (index, store) {
+                            if (store.name === store_name) {
+                                store_for_sensor = store;
+                                //sensor already exists in the model, therefore it needs tobe replaced
+                            }
+                        })
+                        return store_for_sensor;
+                    }
+
+                    var show_store = function (sensor, store_name) {
+                        //alert('hello');
+                        d1 = show_store_1(sensor.name, store_name)
+                        d1.append($('<button/>', {
+                            text: 'create swarm',
+                            id: store_name,
+                            class: 'group',
+                            click: function () {
+                                var new_swarm_config = create_swarm_config(sensor);
+
+                                show_swarm_config(
+                                        new_swarm_config,
+                                        json_schema,
+                                        sensor.name,
+                                        store_name)
+                            }
+                        }))
+                    }
+
+
+
+                    var show_swarm_config = function (config, schema, sensor, store) {
+
+                        config_editor_div = $('<div/>', {
+                            id: 'edit_' + sensor + '_' + store,
+                            text: 'here comes a swarm config editor',
+                            class: 'group'}).prependTo("#" + sensor + "_" + store)
+
+
+
+                        JSONEditor.defaults.editors.object.options.collapsed = true;
+                        //$('#swarm_config').empty();
+                        var editor = new JSONEditor(config_editor_div[0], {
+                            schema: schema,
+                            startval: config
                         });
 
-                        client.subscribe("/topic/p", function (message) {
-                            p = p + 1;
-                            tracep.x.push(p);
-                            tracep.y.push(message.body);
-                            var data = [trace1, trace2, trace3, trace4, tracep];
-                            Plotly.newPlot('myDiv', data);
-                        });
-                    });
+
+                        config_editor_div.append($('<button/>', {
+                            text: 'swarm',
+                            id: store,
+                            click: function () {
+                                //start a swarm based on the configuration
+                                var command = {
+                                    message: {
+                                        type: "swarm_ng",
+                                        config: editor.getValue(),
+                                        sensor: sensor,
+                                        store: store
+                                    }
+                                }
+                                client.send("/topic/admin_out", {}, JSON.stringify(command));
+                            }
+                        }))
+                    }
+
+                    var add_swarm = function (sensor, store, swarm) {
+                        $("#" + sensor + "_" + store).append($('<div/>', {
+                            id: 'swarm_box_' + sensor + '_' + store + '_' + swarm,
+                            text: swarm,
+                            class: 'swarm_box'
+                        }
+                        ).append($('<button/>', {
+                            class: 'group',
+                            id: sensor + '_' + store + '_' + swarm,
+                            text: 'teach',
+                            click: function () {
+                                //start a swarm based on the configuration
+                                var command = {
+                                    message: {
+                                        type: "teach_ng",
+                                        swarm: swarm,
+                                        sensor: sensor,
+                                        store: store
+                                    }
+                                }
+                                client.send("/topic/admin_out", {}, JSON.stringify(command));
+                            }
+                        }
+                        )).append($('<button/>', {
+                            class: 'group',
+                            id: 'bla',
+                            text: 'online',
+                            click: function () {
+                                //start a swarm based on the configuration
+                                var command = {
+                                    message: {
+                                        type: "online_ng",
+                                        sensor: sensor,
+                                        store: store,
+                                        swarm: swarm
+                                    }
+                                }
+                                client.send("/topic/admin_out", {}, JSON.stringify(command));
+                            }
+                        }
+                        )))
+                    };
+
+                    //playground stuff here
                     $('#btn1').click(function () {
                         sendButtonValue(this.id);
                     });
-                    $('#btn2').click(function () {
-                        sendButtonValue(this.id);
+
+                    $('#clear_debug_screen').click(function () {
+                        $("#debug").empty();
                     });
-                    $('#btn3').click(function () {
-                        sendButtonValue(this.id);
-                    });
-                    $('#btn4').click(function () {
-                        sendButtonValue(this.id);
-                    });
-                    $('#rst').click(function () {
-                        sendButtonValue(this.id);
-                    });
+
+
+                    $('#checkbox_online').change(function () {
+                        //alert("checkbox changed");
+                        var command = {message: {type: "command", command: {name: "online"}}}
+
+                        if ($('#checkbox_online').prop('checked')) {
+                            command.message.command.online = "yes"
+                            start_online = true;
+                        } else {
+                            command.message.command.online = "no"
+                            stop_online = true;
+                        }
+                        client.send("/topic/admin_out", {}, JSON.stringify(command));
+                    })
+
+                    //var node_id = "0005";
+                    var sendButtonValue = function (id) {
+                        var command = {
+                            message: {
+                                type: "command", command: {
+                                    name: "btn_" + id
+                                }
+                            }
+                        }
+                        client.send("/topic/admin_out", {}, JSON.stringify(command));
+                    };
+
+
                 } else {
                     $("#connect").html("\
                     <h1>Get a new Web Browser!</h1>\
@@ -129,25 +456,58 @@ and open the template in the editor.
             //]]></script>
     </head>
     <body>
+        <div id="tabs">
+            <ul>
+                <li><a href="#tabs-5">Sensors</a></li>
+                <li><a href="#tabs-6">Debug Monitor</a></li>
+                <li><a href="#tabs-1">Playground</a></li>
+                <li><a href="#tabs-2">(empty)</a></li>
+                <li><a href="#tabs-3">(empty)</a></li>
 
-        <table>
-            <tr>
-                <td>Button 1c</td><td><button type="button" id='btn1'>Set</button></td>
-            </tr>            
-            <tr>
-                <td>Button 2</td><td><button type="button" id='btn2'>Set</button></td>
-            </tr>            
-            <tr>
-                <td>Button 3</td><td><button type="button" id='btn3'>Set</button></td>
-            </tr>            
-            <tr>
-                <td>Button 4</td><td><button type="button" id='btn4'>Set</button></td>
-            </tr>
-            <tr>
-                <td>Reset</td><td><button type="button" id='rst'>Set</button></td><td><span id="messages"></span></td>
-            </tr>
-        </table>
-        <div id="myDiv" style="width: 1200px; height: 400px;"><!-- Plotly chart will be drawn inside this DIV --></div>
-        <pre id="debug"></pre>
+            </ul>
+            <div id="tabs-1">
+                <input type="checkbox" id="checkbox_online"><label for="checkbox_online">Online</label>
+                <table>
+                    <tr>
+                        <td></td><td><button type="button" id='btn1'>Start recording input</button></td>
+                    </tr>
+                    <tr>
+                        <td></td><td><span id="messages"></span></td><td></td>
+                    </tr>
+                </table><div id="myDiv">
+                </div>
+                <!--                <div id="myDiv" style="width: 1200px; height: 400px;">-->
+                <!-- Plotly chart will be drawn inside this DIV --></div>
+
+            <div id="tabs-2">
+                <div id="swarm-options">
+                </div>
+            </div>
+            <div id="tabs-3">
+                <div id="teach-options">
+                </div>
+            </div>
+            <div id="tabs-5">
+                <div id='sensors'></div>
+                <p>
+                    <label for="amount1">Monitor window size:</label>
+                    <input type="text" id="amount1" readonly style="border:0; color:#f6931f; font-weight:bold;">
+                </p>
+                <div id="slider1"></div>
+                <div id="sensor_monitor"></div>
+                <p>Sensor Recording:</p>
+                <div id="sensor_functions" ></div>
+
+
+
+                <p>Stores and Swarms NG:</p>
+                <div id="stores_ng"></div>
+            </div>
+            <div id="tabs-6">
+                <button type="button" id='clear_debug_screen'>Clear</button>
+                <pre id="debug"></pre>
+            </div>           
+        </div>
+
     </body>
 </html>
